@@ -1,0 +1,5 @@
+<form method="get" class="filters" aria-label="Filtrar linhas vinculadas">
+  {{ filter_form.as_p }}
+  <button type="submit">Filtrar</button>
+  <a class="button button-secondary" href="{% if current == 'sqvi' %}{% url 'critical-sqvi-dashboard' %}{% else %}{% url 'critical-lrr-dashboard' %}{% endif %}">Limpar</a>
+</form>

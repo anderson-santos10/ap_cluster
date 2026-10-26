@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% load criticals_extras %}
+
+{% block title %}Dashboard de estoque — AP Cluster{% endblock %}
+{% block page_class %}page-wide{% endblock %}
+
+{% block content %}
+  <section class="panel dashboard">
+    <header class="dash-head">
+      <div>
+        <p class="kicker">AP Cluster</p>
+        <h1>Dashboard de estoque</h1>
+        <p class="lead">Posições já ligadas ao item pelo material e pelo centro exatos. Livre, trânsito, qualidade e bloqueado ficam separados. Ausência de posição é saldo desconhecido, não zero. Grupo repetido não gera total.</p>
+      </div>
+      {% include "criticals/includes/dashboard_nav.html" %}
+    </header>
+    {% include "criticals/includes/dashboard_filters.html" %}
+    {% if filter_form.errors %}
+      <p class="empty">O filtro não corresponde a um centro ou status registrado.</p>
+    {% elif report.item_count %}
+      <div class="cards">
+        <article class="card">
+          <span>Itens no filtro</span>
+          <strong>{{ report.item_count }}</strong>
+          <small>Unidade: itens</small>
+        </article>
+        <article class="card">
+          <span>Itens com posição</span>
+          <strong>{{ report.with_position }}</strong>
+          <small>Par material e centro</small>
+        </article>
+        <article class="card">
+          <span>Saldo desconhecido</span>
+          <strong>{{ report.unknown }}</strong>
+          <small>Itens sem posição. Não é zero</small>
+        </article>
+        <article class="card">
+          <span>Posições</span>
+          <strong>{{ report.position_count }}</strong>
+          <small>Depósito e lote separados</small>
+        </article>
+        <article class="card">
+          <span>Grupos repetidos</span>
+          <strong>{{ report.repeated_groups }}</strong>
+          <small>Sinalizados, sem soma</small>
+        </article>
+        <article class="card">
+          <span>Divergências de descrição</span>
+          <strong>{{ report.divergences }}</strong>
+          <small>O texto do item permanece</small>
+        </article>
+        <article class="card">
+          <span>PC com decimal</span>
+          <strong>{{ report.decimal_pc }}</strong>
+          <small>Quantidade preservada</small>
+        </article>
+      </div>
+      {% if report.unknown %}
+        <section class="chart" aria-labelledby="unknown-stock">
+          <h2 id="unknown-stock">Itens sem posição</h2>
+          <p>O saldo destes itens é desconhecido, não zero. A lista não mostra quantidade.</p>
+          <ul class="item-pills">
+            {% for item in report.unknown_items %}
+              <li><a href="{% url 'critical-item-detail' item.pk %}"><code class="code">{{ item.material }}</code> {{ item.center }}</a></li>
+            {% endfor %}
+          </ul>
+          {% if report.unknown > 40 %}
+            <p>A lista mostra 40 de {{ report.unknown }} itens. O cartão conta o filtro inteiro.</p>
+          {% endif %}
+        </section>
+      {% endif %}
+      {% if report.position_count %}
+        <section class="chart" aria-labelledby="stock-positions">
+          <h2 id="stock-positions">Posições por material, centro, depósito e lote</h2>
+          <p>Unidade de cada linha: a unidade gravada na posição. As quatro quantidades não são somadas entre si nem entre linhas repetidas.</p>
+          {% if report.unknown %}
+            <p class="unknown">{% if report.unknown == 1 %}1 item permanece com saldo desconhecido e não aparece nesta tabela.{% else %}{{ report.unknown }} itens permanecem com saldo desconhecido e não aparecem nesta tabela.{% endif %}</p>
+          {% endif %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Material</th>
+                  <th>Centro</th>
+                  <th>Depósito</th>
+                  <th>Lote</th>
+                  <th>Unidade</th>
+                  <th>Livre</th>
+                  <th>Trânsito</th>
+                  <th>Qualidade</th>
+                  <th>Bloqueado</th>
+                  <th>Sinalização</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in page %}
+                  <tr>
+                    <td>
+                      <a href="{% url 'critical-item-detail' row.item_pk %}"><code class="code">{{ row.material }}</code></a>
+                      {% if row.material|has_edge_space %}<span class="review">espaço preservado</span>{% endif %}
+                    </td>
+                    <td>
+                      <code class="code">{{ row.center }}</code>
+                      {% if row.center_name %}<small class="source-subtext">{{ row.center_name }} · texto original</small>{% endif %}
+                    </td>
+                    <td>
+                      {{ row.deposit_label }}
+                      {% if row.deposit_description %}<small class="source-subtext">{{ row.deposit_description }}</small>{% endif %}
+                    </td>
+                    <td>{{ row.lot_label }}</td>
+                    <td>{{ row.unit }}</td>
+                    <td>{{ row.unrestricted }}</td>
+                    <td>{{ row.in_transit }}</td>
+                    <td>{{ row.in_quality }}</td>
+                    <td>{{ row.blocked }}</td>
+                    <td>
+                      {% if row.repeated %}<span class="review">posição repetida</span>{% endif %}
+                      {% if row.decimal_pc %}<span class="review">PC com decimal</span>{% endif %}
+                      {% if row.description_differs %}<span class="review">descrição divergente</span> {{ row.stock_description }}{% endif %}
+                      {% if not row.repeated and not row.decimal_pc and not row.description_differs %}—{% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if page.has_other_pages %}
+            <nav class="pager" aria-label="Páginas das posições">
+              {% if page.has_previous %}<a href="?{{ page_query }}page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+              <span>Página {{ page.number }} de {{ page.paginator.num_pages }}</span>
+              {% if page.has_next %}<a href="?{{ page_query }}page={{ page.next_page_number }}">Próxima</a>{% endif %}
+            </nav>
+          {% endif %}
+        </section>
+      {% else %}
+        <p class="empty">Saldo desconhecido. Nenhum item deste filtro tem posição vinculada pelo mesmo material e centro exatos. Isso é diferente de zero.</p>
+      {% endif %}
+    {% else %}
+      <p class="empty">Nenhum item crítico neste filtro.</p>
+    {% endif %}
+  </section>
+{% endblock %}

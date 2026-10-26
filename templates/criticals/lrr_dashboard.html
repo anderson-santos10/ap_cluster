@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}LRR — AP Cluster{% endblock %}
+{% block page_class %}page-wide{% endblock %}
+
+{% block content %}
+  <section class="panel dashboard source-dashboard">
+    <header class="dash-head">
+      <div>
+        <p class="kicker">Fonte complementar · LRR</p>
+        <h1>Parâmetros MRP</h1>
+        <p class="lead">{{ intro }}</p>
+      </div>
+      {% include "criticals/includes/dashboard_nav.html" %}
+    </header>
+
+    {% include "criticals/includes/source_filters.html" %}
+
+    <section class="cards cards-compact" aria-label="Resumo do recorte LRR">
+      <article class="card"><span>Linhas vinculadas</span><strong>{{ row_count }}</strong><small>Par material + Área MRP centro</small></article>
+      <article class="card"><span>Itens com linha</span><strong>{{ linked_item_count }}</strong><small>Correspondência exata</small></article>
+      <article class="card"><span>Itens filtrados</span><strong>{{ matching_items }}</strong><small>Itens críticos</small></article>
+      <article class="card"><span>Sem par neste extrato</span><strong>{{ missing_item_count }}</strong><small>Não substitui LRR ausente</small></article>
+    </section>
+
+    <p class="alert">Os parâmetros são exibidos como registrados na aba LRR. Eles não sobrescrevem o LRR do item crítico e não geram cálculos MRP nesta tela. Os campos originais completos ficam disponíveis em cada linha.</p>
+
+    {% if records %}
+      <section class="chart source-table" aria-labelledby="lrr-rows-title">
+        <h2 id="lrr-rows-title">Parâmetros ligados aos itens críticos</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Linha</th><th>Item crítico</th>{% for column in columns %}<th>{{ column.label }}</th>{% endfor %}<th>Origem completa</th></tr>
+            </thead>
+            <tbody>
+              {% for row in records %}
+                <tr>
+                  <td>{{ row.source_row }}</td>
+                  <td><a href="{% url 'critical-item-detail' row.item.pk %}"><code class="code">{{ row.item.material }}</code> · {{ row.item.center }}</a></td>
+                  {% for value in row.visible_values %}<td>{{ value }}</td>{% endfor %}
+                  <td>
+                    <details class="source-details">
+                      <summary>Ver campos da linha</summary>
+                      <p class="muted">Valores com fórmula mostram a expressão e o cache guardado na planilha. Esse cache não é recalculado nem usado como indicador.</p>
+                      <dl class="source-fields">
+                        {% for field in row.details %}<dt>{{ field.label }}</dt><dd>{{ field.value }}</dd>{% endfor %}
+                      </dl>
+                    </details>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% include "criticals/includes/source_pager.html" %}
+      </section>
+    {% elif matching_items %}
+      <p class="empty">Nenhuma linha LRR deste extrato tem correspondência exata no recorte atual. O LRR já informado no item crítico continua independente desta consulta.</p>
+    {% else %}
+      <p class="empty">Nenhum item crítico corresponde aos filtros.</p>
+    {% endif %}
+  </section>
+{% endblock %}

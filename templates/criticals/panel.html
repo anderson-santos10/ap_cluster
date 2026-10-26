@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard executivo — AP Cluster{% endblock %}
+{% block page_class %}page-wide{% endblock %}
+
+{% block content %}
+  <section class="panel dashboard">
+    <header class="dash-head">
+      <div>
+        <p class="kicker">AP Cluster</p>
+        <h1>Dashboard executivo</h1>
+        <p class="lead">Contagens dos itens registrados. O centro aparece pelo código. O percentual da previsão usa somente itens com data. Quantidade de estoque e documento de compra ficam de fora deste dashboard.</p>
+      </div>
+      {% include "criticals/includes/dashboard_nav.html" %}
+    </header>
+    {% include "criticals/includes/dashboard_filters.html" %}
+    {% if filter_form.errors %}
+      <p class="empty">O filtro não corresponde a um centro ou status registrado.</p>
+    {% elif summary.total %}
+      <div class="cards">
+        <a class="card" href="{{ summary.total_url }}">
+          <span>Total de críticos</span>
+          <strong>{{ summary.total }}</strong>
+          <small>Unidade: itens</small>
+        </a>
+        <a class="card" href="{{ summary.total_url }}">
+          <span>Centros no filtro</span>
+          <strong>{{ summary.center_count }}</strong>
+          <small>Código SAP</small>
+        </a>
+        <a class="card" href="{{ summary.dated_url }}">
+          <span>Com data válida</span>
+          <strong>{{ summary.dated }}</strong>
+          <small>Previsão com data</small>
+        </a>
+        <a class="card" href="{{ summary.undated_url }}">
+          <span>Sem data válida</span>
+          <strong>{{ summary.undated }}</strong>
+          <small>Inclui previsão literal</small>
+        </a>
+      </div>
+
+      <div class="chart-grid">
+        <section class="chart" aria-labelledby="chart-centers">
+          <h2 id="chart-centers">Itens por centro</h2>
+          <p>Unidade: itens. Cada barra é a contagem do código do centro.</p>
+          <ul class="bars">
+            {% for row in summary.centers %}
+              <li>
+                <a href="{{ row.list_url }}">
+                  <span class="bar-label"><code class="code">{{ row.label }}</code></span>
+                  <span class="bar-track" aria-hidden="true"><span class="bar-fill" style="width: {{ row.width }}%"></span></span>
+                  <span class="bar-value">{{ row.count }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+
+        <section class="chart" aria-labelledby="chart-status">
+          <h2 id="chart-status">Status da entrega</h2>
+          <p>Unidade: itens. Contagem e percentual sobre os {{ summary.total }} itens do filtro.</p>
+          <ul class="bars">
+            {% for row in summary.statuses %}
+              <li>
+                <a href="{{ row.list_url }}">
+                  <span class="bar-label">{{ row.label }}</span>
+                  <span class="bar-track" aria-hidden="true"><span class="bar-fill status-tone-{{ row.status|default:'ausente'|slugify }}" style="width: {{ row.width }}%"></span></span>
+                  <span class="bar-value">{{ row.count }} · {{ row.percent_label }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      </div>
+
+      <section class="chart" aria-labelledby="chart-forecast">
+        <h2 id="chart-forecast">Previsão no parque</h2>
+        {% if summary.dated %}
+          <p>Unidade: itens. Percentual sobre os {{ summary.dated }} itens com data de previsão. O dia 1 representa o mês.</p>
+          <ul class="bars">
+            {% for row in summary.months %}
+              <li>
+                <a href="{{ row.list_url }}">
+                  <span class="bar-label">{{ row.label }}</span>
+                  <span class="bar-track" aria-hidden="true"><span class="bar-fill bar-fill-forecast" style="width: {{ row.width }}%"></span></span>
+                  <span class="bar-value">{{ row.count }} · {{ row.percent_label }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="empty">Nenhum item do filtro tem data de previsão.</p>
+        {% endif %}
+        <p>
+          Sem data válida: {{ summary.undated }}.
+          {% if summary.literals %}
+            Esse total inclui
+            {% for row in summary.literals %}
+              {{ row.count }} {% if row.count == 1 %}item{% else %}itens{% endif %} com previsão literal <span class="literal">{{ row.forecast_original }}</span>{% if not forloop.last %},{% else %}.{% endif %}
+            {% endfor %}
+          {% endif %}
+          <a href="{{ summary.undated_url }}">Ver itens sem data válida</a>
+        </p>
+      </section>
+
+      <section class="chart" aria-labelledby="chart-attention">
+        <h2 id="chart-attention">Itens que exigem atenção</h2>
+        <p>Entram só estes casos já definidos: quantidade negativa, entrega sem data, previsão literal e status ausente. A lista não classifica atraso.</p>
+        <div class="cards cards-compact">
+          <article class="card">
+            <span>Quantidades negativas</span>
+            <strong>{{ attention.negative }}</strong>
+            <small>Unidade: entregas</small>
+          </article>
+          <article class="card">
+            <span>Entregas sem data</span>
+            <strong>{{ attention.missing_dates }}</strong>
+            <small>A data não é inventada</small>
+          </article>
+          <article class="card">
+            <span>Previsão literal</span>
+            <strong>{{ attention.literals }}</strong>
+            <small>Sem conversão em data</small>
+          </article>
+          <article class="card">
+            <span>Status ausente</span>
+            <strong>{{ attention.absent_status }}</strong>
+            <small>Unidade: itens</small>
+          </article>
+        </div>
+        {% if attention.rows %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Motivo</th>
+                  <th>Material</th>
+                  <th>Centro</th>
+                  <th>Detalhe</th>
+                  <th>Registro</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in attention.rows|slice:":40" %}
+                  <tr>
+                    <td>{{ row.reason }}</td>
+                    <td><code class="code">{{ row.material }}</code></td>
+                    <td><code class="code">{{ row.center }}</code></td>
+                    <td>{% if row.reason == "Quantidade negativa" %}<span class="review">{{ row.detail }}</span>{% else %}{{ row.detail }}{% endif %}</td>
+                    <td><a href="{{ row.url }}">Abrir</a></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if attention.rows|length > 40 %}
+            <p>A tabela mostra 40 de {{ attention.rows|length }} linhas. Os cartões acima contam o filtro inteiro.</p>
+          {% endif %}
+        {% else %}
+          <p class="empty">Nenhum destes casos no filtro.</p>
+        {% endif %}
+      </section>
+      <p><a href="{{ filtered_list_url }}">Ver itens deste filtro</a></p>
+    {% else %}
+      <p class="empty">Nenhum item crítico neste filtro.</p>
+    {% endif %}
+  </section>
+{% endblock %}

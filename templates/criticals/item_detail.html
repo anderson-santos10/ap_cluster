@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item.material }} {{ item.center }} — AP Cluster{% endblock %}
+{% block page_class %}page-wide{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <p><a href="{% url 'critical-item-list' %}">Voltar à lista</a></p>
+    <h1><code class="code">{{ item.material }}</code> · {{ item.center }}</h1>
+    <p>{{ item.description }}</p>
+    {% if has_extra_space %}
+      <p class="alert">O material original preserva espaço. A comparação sem espaços é {{ normalized_material }}. Nenhum registro foi unido por causa disso.</p>
+    {% endif %}
+    {% if collisions %}
+      <p class="alert">Existe outro código que coincide com {{ normalized_material }} depois de remover espaços.</p>
+    {% endif %}
+    <dl class="facts">
+      <div>
+        <dt>Status atual</dt>
+        <dd><span class="status status-{{ item.status|slugify }}">{{ item.status|default:"ausente" }}</span></dd>
+      </div>
+      <div>
+        <dt>Previsão</dt>
+        <dd>
+          {% if item.forecast_on %}
+            {{ item.forecast_on|date:"d/m/Y" }}
+            {% if item.forecast_on.day == 1 %}
+              <span class="muted">Mês esperado, não um dia exato de chegada.</span>
+            {% else %}
+              <span class="muted">Data de previsão.</span>
+            {% endif %}
+          {% elif item.forecast_original %}
+            <span class="literal">{{ item.forecast_original }}</span>
+            <span class="muted">Valor literal preservado, sem conversão.</span>
+          {% else %}
+            <span class="absent">ausente</span>
+          {% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt>LRR</dt>
+        <dd>
+          {% if lrr_absent %}
+            <span class="absent">ausente, distinto de zero</span>
+          {% elif item.lrr == 0 %}
+            zero confirmado
+          {% else %}
+            {{ item.lrr }}
+          {% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt>Observação</dt>
+        <dd>{% if item.observation %}{{ item.observation }}{% else %}<span class="absent">ausente</span>{% endif %}</dd>
+      </div>
+      <div>
+        <dt>Estoque</dt>
+        <dd>
+          {% if stock_rows %}
+            {% if stock_rows|length == 1 %}
+              1 posição do mesmo material e centro. As quantidades não são somadas.
+            {% else %}
+              {{ stock_rows|length }} posições do mesmo material e centro. As quantidades não são somadas.
+            {% endif %}
+          {% else %}
+            <span class="unknown">Saldo desconhecido. Não há posição com o mesmo material e o mesmo centro. Isso é diferente de zero.</span>
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+    <div class="actions">
+    {% if perms.criticals.add_delivery %}
+      <a class="button" href="{% url 'delivery-create' item.pk %}">Registrar entrega</a>
+    {% endif %}
+    {% if perms.criticals.change_critical_status %}
+      <a class="button button-secondary" href="{% url 'status-change' item.pk %}">Alterar status</a>
+    {% else %}
+      <p class="muted">A alteração de status permanece bloqueada até a definição de quais textos pertencem a cada perfil.</p>
+    {% endif %}
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Posições de estoque</h2>
+    {% if stock_rows %}
+      <p>Livre, trânsito, qualidade e bloqueado ficam em colunas separadas. Posição repetida não gera total.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Depósito</th>
+              <th>Lote</th>
+              <th>Unidade</th>
+              <th>Livre</th>
+              <th>Trânsito</th>
+              <th>Qualidade</th>
+              <th>Bloqueado</th>
+              <th>Sinalização</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in stock_rows %}
+              <tr>
+                <td>{{ row.deposit_label }}</td>
+                <td>{{ row.lot_label }}</td>
+                <td>{{ row.unit }}</td>
+                <td>{{ row.unrestricted }}</td>
+                <td>{{ row.in_transit }}</td>
+                <td>{{ row.in_quality }}</td>
+                <td>{{ row.blocked }}</td>
+                <td>
+                  {% if row.repeated %}<span class="review">posição repetida</span>{% endif %}
+                  {% if row.decimal_pc %}<span class="review">PC com decimal</span>{% endif %}
+                  {% if row.description_differs %}
+                    <span class="review">descrição divergente</span>
+                    {{ row.stock_description }}
+                  {% endif %}
+                  {% if not row.repeated and not row.decimal_pc and not row.description_differs %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">A descrição do item permanece. O texto do estoque só aparece quando diverge.</p>
+    {% else %}
+      <p class="empty">Nenhuma posição ligada. O saldo permanece desconhecido, não zero. A aba de estoque ainda não foi carregada.</p>
+    {% endif %}
+  </section>
+  <section class="panel">
+    <h2>Entregas</h2>
+    {% if item.deliveries.all %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Quantidade</th>
+              <th>Data</th>
+              <th>Origem</th>
+              <th>Revisão</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for delivery in item.deliveries.all %}
+              <tr id="entrega-{{ delivery.pk }}">
+                <td>{% if delivery.requires_review %}<span class="review">{{ delivery.quantity }}</span>{% else %}{{ delivery.quantity }}{% endif %}</td>
+                <td>{% if delivery.delivered_on %}{{ delivery.delivered_on|date:"d/m/Y" }} <span class="muted">data real</span>{% else %}<span class="absent">ausente</span>{% endif %}</td>
+                <td>{% if delivery.source %}{{ delivery.source }} linha {{ delivery.source_row }}{% else %}manual{% endif %}</td>
+                <td>{% if delivery.requires_review %}<span class="review">quantidade negativa</span>{% else %}—{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty">Nenhuma entrega registrada.</p>
+    {% endif %}
+  </section>
+  <section class="panel">
+    <h2>Histórico de status</h2>
+    {% if item.status_changes.all %}
+      <ul class="history">
+        {% for change in item.status_changes.all %}
+          <li>{{ change.status }}{% if change.changed_by %} · {{ change.changed_by.get_username }}{% endif %}{% if change.changed_at %} · {{ change.changed_at }}{% endif %}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">Nenhuma alteração de status registrada.</p>
+    {% endif %}
+  </section>
+{% endblock %}

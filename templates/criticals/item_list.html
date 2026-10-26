@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Itens críticos — AP Cluster{% endblock %}
+{% block page_class %}page-wide{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <h1>Itens críticos</h1>
+    <p class="lead">Consulta dos itens registrados. O saldo de estoque não aparece porque continua desconhecido.</p>
+    {% if collisions %}
+      <p class="alert">Há códigos que ficam iguais depois de remover espaços. Os registros originais não foram unidos.</p>
+    {% endif %}
+    {% if spacing_count %}
+      <p class="alert">{{ spacing_count }} item(ns) preservam espaço no material.</p>
+    {% endif %}
+    {% if extra_filters %}
+      <p class="alert">
+        Recorte do painel:
+        {% for extra in extra_filters %}{{ extra.label }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+        <a href="?{{ filters_without_extra }}">Limpar recorte</a>
+      </p>
+    {% endif %}
+    <form method="get" class="filters">
+      {% for extra in extra_filters %}
+        <input type="hidden" name="{{ extra.name }}" value="{{ extra.value }}">
+      {% endfor %}
+      {{ filter_form.as_p }}
+      <button type="submit">Filtrar</button>
+    </form>
+    {% if items %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Material</th>
+              <th>Descrição</th>
+              <th>Centro</th>
+              <th>Status</th>
+              <th>Previsão</th>
+              <th>LRR</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+              <tr>
+                <td><a href="{% url 'critical-item-detail' item.pk %}"><code class="code">{{ item.material }}</code></a></td>
+                <td>{{ item.description }}</td>
+                <td>{{ item.center }}</td>
+                <td><span class="status status-{{ item.status|slugify }}">{{ item.status|default:"ausente" }}</span></td>
+                <td>
+                  {% if item.forecast_on %}
+                    {{ item.forecast_on|date:"d/m/Y" }}
+                    {% if item.forecast_on.day == 1 %}<span class="muted">mês esperado</span>{% endif %}
+                  {% elif item.forecast_original %}
+                    <span class="literal">{{ item.forecast_original }}</span>
+                    <span class="muted">literal</span>
+                  {% else %}
+                    <span class="absent">ausente</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.lrr is None %}
+                    <span class="absent">ausente</span>
+                  {% elif item.lrr == 0 %}
+                    zero confirmado
+                  {% else %}
+                    {{ item.lrr }}
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page_obj.has_other_pages %}
+        <nav class="pager">
+          {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}&amp;{{ filter_query }}">Anterior</a>
+          {% endif %}
+          <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+          {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}&amp;{{ filter_query }}">Próxima</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+    {% else %}
+      <p class="empty">Nenhum item crítico encontrado.</p>
+    {% endif %}
+    <p><a href="{% url 'critical-inconsistencies' %}">Ver inconsistências</a></p>
+  </section>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}SQVI — AP Cluster{% endblock %}
+{% block page_class %}page-wide{% endblock %}
+
+{% block content %}
+  <section class="panel dashboard source-dashboard">
+    <header class="dash-head">
+      <div>
+        <p class="kicker">Fonte complementar · SQVI</p>
+        <h1>Documentos SQVI</h1>
+        <p class="lead">{{ intro }}</p>
+      </div>
+      {% include "criticals/includes/dashboard_nav.html" %}
+    </header>
+
+    {% include "criticals/includes/source_filters.html" %}
+
+    <section class="cards cards-compact" aria-label="Resumo do recorte SQVI">
+      <article class="card"><span>Linhas vinculadas</span><strong>{{ row_count }}</strong><small>Linhas distintas da origem</small></article>
+      <article class="card"><span>Itens com linha</span><strong>{{ linked_item_count }}</strong><small>Correspondência exata</small></article>
+      <article class="card"><span>Itens filtrados</span><strong>{{ matching_items }}</strong><small>Chave material + centro</small></article>
+      <article class="card"><span>Sem par neste extrato</span><strong>{{ missing_item_count }}</strong><small>Não significa ausência de pedido</small></article>
+    </section>
+
+    <p class="alert">A tabela mantém cada linha separada. `Fornecimento`, `Qtd.remessa` e quantidades confirmadas não são interpretados como recebimento; saldo pendente não é calculado. Os campos originais completos ficam disponíveis em cada linha.</p>
+
+    {% if records %}
+      <section class="chart source-table" aria-labelledby="sqvi-rows-title">
+        <h2 id="sqvi-rows-title">Linhas do extrato ligadas aos itens críticos</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Linha</th><th>Item crítico</th>{% for column in columns %}<th>{{ column.label }}</th>{% endfor %}<th>Origem completa</th></tr>
+            </thead>
+            <tbody>
+              {% for row in records %}
+                <tr>
+                  <td>{{ row.source_row }}</td>
+                  <td><a href="{% url 'critical-item-detail' row.item.pk %}"><code class="code">{{ row.item.material }}</code> · {{ row.item.center }}</a></td>
+                  {% for value in row.visible_values %}<td>{{ value }}</td>{% endfor %}
+                  <td>
+                    <details class="source-details">
+                      <summary>Ver campos da linha</summary>
+                      <p class="muted">Valores com fórmula mostram a expressão e o cache guardado na planilha. Esse cache não é recalculado nem usado como indicador.</p>
+                      <dl class="source-fields">
+                        {% for field in row.details %}<dt>{{ field.label }}</dt><dd>{{ field.value }}</dd>{% endfor %}
+                      </dl>
+                    </details>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% include "criticals/includes/source_pager.html" %}
+      </section>
+    {% elif matching_items %}
+      <p class="empty">Nenhuma linha SQVI deste extrato tem correspondência exata no recorte atual. Isso não afirma que não exista documento fora do extrato.</p>
+    {% else %}
+      <p class="empty">Nenhum item crítico corresponde aos filtros.</p>
+    {% endif %}
+  </section>
+{% endblock %}

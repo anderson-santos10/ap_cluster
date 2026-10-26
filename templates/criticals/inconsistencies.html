@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load criticals_extras %}
+
+{% block title %}Inconsistências — AP Cluster{% endblock %}
+{% block page_class %}page-wide{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <p><a href="{% url 'critical-item-list' %}">Voltar à lista</a></p>
+    <h1>Inconsistências</h1>
+    <p class="lead">Este relatório usa os registros do banco. O estoque da planilha não foi importado, grupos duplicados não foram somados e saldo ausente não virou zero.</p>
+    <h2>Códigos com espaço preservado</h2>
+    {% if spacing %}
+      <ul class="plain">
+        {% for item in spacing %}
+          <li><a href="{% url 'critical-item-detail' item.pk %}"><code class="code">{{ item.material }}</code></a>{% if item.material|has_edge_space %} <span class="muted">espaço preservado</span>{% endif %} · {{ item.center }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">Nenhum código com espaço extra.</p>
+    {% endif %}
+    <h2>Colisões após remover espaços</h2>
+    {% if collisions %}
+      <ul class="plain">
+        {% for collision in collisions %}
+          <li>
+            {{ collision.normalizado }}:
+            {% for original in collision.originais %}<code class="code">{{ original }}</code>{% if original|has_edge_space %} <span class="muted">espaço preservado</span>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">Nenhuma colisão.</p>
+    {% endif %}
+    <h2>Previsões literais</h2>
+    {% if literal_forecasts %}
+      <ul class="plain">
+        {% for item in literal_forecasts %}
+          <li><code class="code">{{ item.material }}</code> · {{ item.center }}: <span class="literal">{{ item.forecast_original }}</span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">Nenhuma previsão literal.</p>
+    {% endif %}
+    <h2>Entregas negativas</h2>
+    {% if negative_deliveries %}
+      <ul class="plain">
+        {% for delivery in negative_deliveries %}
+          <li><code class="code">{{ delivery.item.material }}</code> · {{ delivery.item.center }}: <span class="review">{{ delivery.quantity }}</span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">Nenhuma quantidade negativa.</p>
+    {% endif %}
+    <h2>Entregas sem data</h2>
+    {% if missing_dates %}
+      <ul class="plain">
+        {% for delivery in missing_dates %}
+          <li><code class="code">{{ delivery.item.material }}</code> · {{ delivery.item.center }}: {{ delivery.quantity }}, data <span class="absent">ausente</span></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">Nenhuma entrega sem data.</p>
+    {% endif %}
+  </section>
+{% endblock %}

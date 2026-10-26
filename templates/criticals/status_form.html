@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Alterar status — AP Cluster{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <h1>Alterar status</h1>
+    <p>{{ item.material }} · {{ item.center }}</p>
+    <p>Status atual: {{ item.status|default:"ausente" }}</p>
+    <form method="post" class="stack-form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit">Registrar alteração</button>
+        <a class="button button-secondary" href="{% url 'critical-item-detail' item.pk %}">Cancelar</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

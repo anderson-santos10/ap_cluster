@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar entrega — AP Cluster{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <h1>Registrar entrega</h1>
+    <p>{{ item.material }} · {{ item.center }}</p>
+    <p class="lead">A quantidade negativa é aceita e fica marcada para revisão. A data pode ficar em branco.</p>
+    <form method="post" class="stack-form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      {% if form.non_field_errors %}
+        <div class="message" role="alert">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <div class="actions">
+        <button type="submit">Registrar</button>
+        <a class="button button-secondary" href="{% url 'critical-item-detail' item.pk %}">Cancelar</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

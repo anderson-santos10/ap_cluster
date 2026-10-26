@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Entrar — AP Cluster{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <h1>Entrar</h1>
+    <p class="lead">Cada integrante usa o próprio usuário e a própria senha.</p>
+    {% if form.non_field_errors %}
+      <div class="message" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <form method="post" action="{% url 'login' %}">
+      {% csrf_token %}
+      <label for="{{ form.username.id_for_label }}">Usuário</label>
+      {{ form.username }}
+      {{ form.username.errors }}
+      <label for="{{ form.password.id_for_label }}">Senha</label>
+      {{ form.password }}
+      {{ form.password.errors }}
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit">Entrar</button>
+    </form>
+  </section>
+{% endblock %}

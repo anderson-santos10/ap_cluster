@@ -1,0 +1,7 @@
+<nav class="dash-nav" aria-label="Painéis e fontes">
+  <a href="{% url 'critical-panel' %}{% if filter_query %}?{{ filter_query }}{% endif %}" {% if current == "executivo" %}aria-current="page"{% endif %}>Executivo</a>
+  <a href="{% url 'critical-stock-dashboard' %}{% if filter_query %}?{{ filter_query }}{% endif %}" {% if current == "estoque" %}aria-current="page"{% endif %}>Estoque</a>
+  <a href="{% url 'critical-delivery-dashboard' %}{% if filter_query %}?{{ filter_query }}{% endif %}" {% if current == "entregas" %}aria-current="page"{% endif %}>Entregas</a>
+  <a href="{% url 'critical-sqvi-dashboard' %}{% if filter_query %}?{{ filter_query }}{% endif %}" {% if current == "sqvi" %}aria-current="page"{% endif %}>SQVI</a>
+  <a href="{% url 'critical-lrr-dashboard' %}{% if filter_query %}?{{ filter_query }}{% endif %}" {% if current == "lrr" %}aria-current="page"{% endif %}>LRR</a>
+</nav>

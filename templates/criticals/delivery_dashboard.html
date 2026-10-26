@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard de entregas — AP Cluster{% endblock %}
+{% block page_class %}page-wide{% endblock %}
+
+{% block content %}
+  <section class="panel dashboard">
+    <header class="dash-head">
+      <div>
+        <p class="kicker">AP Cluster</p>
+        <h1>Dashboard de entregas</h1>
+        <p class="lead">Registros de entrega dos itens do filtro. A data ausente permanece ausente. A quantidade negativa permanece negativa. O gráfico mensal usa só entregas com data.</p>
+      </div>
+      {% include "criticals/includes/dashboard_nav.html" %}
+    </header>
+    {% include "criticals/includes/dashboard_filters.html" %}
+    {% if filter_form.errors %}
+      <p class="empty">O filtro não corresponde a um centro ou status registrado.</p>
+    {% elif summary.total %}
+      <div class="cards">
+        <article class="card">
+          <span>Registros de entrega</span>
+          <strong>{{ report.total }}</strong>
+          <small>Unidade: entregas</small>
+        </article>
+        <article class="card">
+          <span>Com data</span>
+          <strong>{{ report.dated }}</strong>
+          <small>Entram na linha mensal</small>
+        </article>
+        <article class="card">
+          <span>Sem data</span>
+          <strong>{{ report.undated }}</strong>
+          <small>Fora da linha mensal</small>
+        </article>
+        <article class="card">
+          <span>Quantidade negativa</span>
+          <strong>{{ report.negative }}</strong>
+          <small>Sinal preservado</small>
+        </article>
+      </div>
+
+      <div class="chart-grid">
+        <section class="chart" aria-labelledby="delivery-months">
+          <h2 id="delivery-months">Entregas por mês</h2>
+          <p>Unidade: entregas com data. Cada ponto é um mês. Entrega sem data fica fora da linha.</p>
+          {% if report.line %}
+            <svg class="line-chart" viewBox="0 0 100 48" role="img" aria-labelledby="delivery-months">
+              <line class="line-base" x1="6" y1="38" x2="94" y2="38"></line>
+              <polyline points="{{ report.line }}"></polyline>
+              {% for row in report.months %}
+                <circle cx="{{ row.x }}" cy="{{ row.y }}" r="1.4"></circle>
+              {% endfor %}
+            </svg>
+            <ul class="axis">
+              {% for row in report.months %}
+                <li><a href="{{ row.list_url }}" {% if row.value == report.selected_value %}aria-current="true"{% endif %}>{{ row.label }}<br>{{ row.count }}</a></li>
+              {% endfor %}
+            </ul>
+          {% elif report.months %}
+            <p>Há um único mês com data. A comparação fica em uma barra.</p>
+            <ul class="bars">
+              {% for row in report.months %}
+                <li>
+                  <a href="{{ row.list_url }}" {% if row.value == report.selected_value %}aria-current="true"{% endif %}>
+                    <span class="bar-label">{{ row.label }}</span>
+                    <span class="bar-track" aria-hidden="true"><span class="bar-fill" style="width: {{ row.width }}%"></span></span>
+                    <span class="bar-value">{{ row.count }}</span>
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="empty">Nenhuma entrega do filtro tem data.</p>
+          {% endif %}
+          {% if report.selected_label %}
+            <p>Tabela restrita a {{ report.selected_label }}. <a href="{{ clear_url }}{% if filter_query %}?{{ filter_query }}{% endif %}">Ver todos os meses</a></p>
+          {% endif %}
+        </section>
+
+        <section class="chart" aria-labelledby="delivery-status">
+          <h2 id="delivery-status">Entregas por status do item</h2>
+          <p>Unidade: entregas. O status é o do item, não um status próprio da entrega. Percentual sobre {{ report.scoped_total }} registros {% if report.selected_label %}de {{ report.selected_label }}{% else %}do filtro{% endif %}.</p>
+          {% if report.statuses %}
+            <ul class="bars">
+              {% for row in report.statuses %}
+                <li>
+                  <a href="{{ row.list_url }}">
+                    <span class="bar-label">{{ row.label }}</span>
+                    <span class="bar-track" aria-hidden="true"><span class="bar-fill status-tone-{{ row.status|default:'ausente'|slugify }}" style="width: {{ row.width }}%"></span></span>
+                    <span class="bar-value">{{ row.count }} · {{ row.percent_label }}</span>
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="empty">Nenhuma entrega neste recorte.</p>
+          {% endif %}
+        </section>
+      </div>
+
+      <section class="chart" aria-labelledby="item-forecast">
+        <h2 id="item-forecast">Previsão no parque</h2>
+        <p>Unidade: itens, não entregas. O percentual usa só itens com data válida.</p>
+        {% if summary.dated %}
+          <ul class="bars">
+            {% for row in summary.months %}
+              <li>
+                <a href="{{ row.list_url }}">
+                  <span class="bar-label">{{ row.label }}</span>
+                  <span class="bar-track" aria-hidden="true"><span class="bar-fill bar-fill-forecast" style="width: {{ row.width }}%"></span></span>
+                  <span class="bar-value">{{ row.count }} · {{ row.percent_label }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="empty">Nenhum item do filtro tem data de previsão.</p>
+        {% endif %}
+        <p>Sem data válida: {{ summary.undated }}. <a href="{{ summary.undated_url }}">Ver itens sem data válida</a></p>
+      </section>
+
+      <section class="chart" aria-labelledby="delivery-table">
+        <h2 id="delivery-table">Entregas do filtro</h2>
+        {% if page.paginator.count %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Material</th>
+                  <th>Centro</th>
+                  <th>Status do item</th>
+                  <th>Quantidade</th>
+                  <th>Data</th>
+                  <th>Registro</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in page %}
+                  <tr>
+                    <td><code class="code">{{ row.material }}</code></td>
+                    <td><code class="code">{{ row.center }}</code></td>
+                    <td>{{ row.status }}</td>
+                    <td>{% if row.negative %}<span class="review">{{ row.quantity }}</span>{% else %}{{ row.quantity }}{% endif %}</td>
+                    <td>{% if row.date_label == "ausente" %}<span class="absent">ausente</span>{% else %}{{ row.date_label }}{% endif %}</td>
+                    <td><a href="{{ row.url }}">Abrir</a></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if page.has_other_pages %}
+            <nav class="pager" aria-label="Páginas das entregas">
+              {% if page.has_previous %}<a href="?{{ page_query }}page={{ page.previous_page_number }}">Anterior</a>{% endif %}
+              <span>Página {{ page.number }} de {{ page.paginator.num_pages }}</span>
+              {% if page.has_next %}<a href="?{{ page_query }}page={{ page.next_page_number }}">Próxima</a>{% endif %}
+            </nav>
+          {% endif %}
+        {% else %}
+          <p class="empty">Nenhuma entrega nos itens deste filtro.</p>
+        {% endif %}
+      </section>
+    {% else %}
+      <p class="empty">Nenhum item crítico neste filtro.</p>
+    {% endif %}
+  </section>
+{% endblock %}

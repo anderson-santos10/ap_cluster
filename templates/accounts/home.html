@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Início — AP Cluster{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <h1>AP Cluster</h1>
+    <p class="lead">Sessão de {{ user.get_username }}.</p>
+    {% if perms.criticals.view_criticalitem %}
+      <p><a class="button" href="{% url 'critical-panel' %}">Abrir painel</a></p>
+      <p><a class="button button-secondary" href="{% url 'critical-item-list' %}">Abrir itens críticos</a></p>
+    {% else %}
+      <p class="empty">Sua conta ainda não tem permissão para consultar os itens críticos.</p>
+    {% endif %}
+    <p>O estoque permanece desconhecido. Recebimento e documentos de compra não fazem parte desta versão.</p>
+  </section>
+{% endblock %}
