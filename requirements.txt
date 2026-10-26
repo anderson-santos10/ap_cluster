@@ -7,4 +7,4 @@ tzdata==2026.5
 psycopg[binary]==3.2.9
 psycopg-binary==3.2.9
 typing-extensions==4.16.0
-gunicorn
+gunicorn==26.2.0

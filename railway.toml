@@ -1,0 +1,4 @@
+# O edge do Railway encaminha o tráfego para $PORT.
+# O bind em :: faz o Gunicorn aceitar IPv4 e IPv6; 0.0.0.0 sozinho não atende o caminho interno.
+[deploy]
+startCommand = "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind \"[::]:${PORT:-8080}\""

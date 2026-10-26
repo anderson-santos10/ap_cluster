@@ -30,6 +30,11 @@ def _child_env(**extra):
 
 
 class DeploySettingsTests(SimpleTestCase):
+    def test_railway_start_command_binds_the_wsgi_app_to_the_platform_port(self):
+        command = (ROOT / "railway.toml").read_text(encoding="utf-8")
+        self.assertIn("config.wsgi:application", command)
+        self.assertIn('[::]:${PORT:-8080}', command)
+        self.assertIn("python manage.py migrate --noinput", command)
     def test_local_remains_the_default_outside_railway(self):
         saved_module = os.environ.pop("DJANGO_SETTINGS_MODULE", None)
         saved_railway = os.environ.pop("RAILWAY_ENVIRONMENT", None)
