@@ -1,4 +1,6 @@
 # O edge do Railway encaminha o tráfego para $PORT.
-# O bind em :: faz o Gunicorn aceitar IPv4 e IPv6; 0.0.0.0 sozinho não atende o caminho interno.
+# O CMD do Dockerfile e este startCommand chamam o mesmo script,
+# para migrate, collectstatic e o servidor não ficarem definidos duas vezes.
+# O bind [::] dentro do script aceita IPv4 e IPv6 na imagem Debian.
 [deploy]
-startCommand = "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind \"[::]:${PORT:-8080}\""
+startCommand = "/app/entrypoint.prod.sh"
