@@ -22,3 +22,6 @@ wheels/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
+
+# Saída do collectstatic. Os arquivos de origem ficam em static/.
+staticfiles/

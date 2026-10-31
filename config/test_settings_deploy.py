@@ -42,10 +42,39 @@ class DeploySettingsTests(SimpleTestCase):
         self.assertNotIn(" &", entrypoint)
         self.assertIn('CMD ["/app/entrypoint.prod.sh"]', dockerfile)
         self.assertIn("config.wsgi:application", entrypoint)
-        self.assertIn('[::]:${PORT:-8080}', entrypoint)
+        self.assertIn('0.0.0.0:${PORT:-8080}', entrypoint)
         self.assertIn("python manage.py migrate --noinput", entrypoint)
         self.assertIn("python manage.py collectstatic --noinput", entrypoint)
         self.assertIn("exec gunicorn", entrypoint)
+
+    def test_production_whitenoise_serves_collected_static_files(self):
+        completed = subprocess.run(
+            [sys.executable, "-c", _SERVE_STATIC],
+            cwd=ROOT,
+            env=_child_env(
+                DJANGO_SETTINGS_MODULE="config.settings.production",
+                DJANGO_SECRET_KEY="deploy-check-only-static-files-not-a-production-secret",
+                POSTGRES_DB="apcluster",
+                POSTGRES_USER="app",
+                POSTGRES_PASSWORD="deploy-check-only",
+                POSTGRES_HOST="127.0.0.1",
+                POSTGRES_PORT="5432",
+                RAILWAY_PUBLIC_DOMAIN="apcluster.up.railway.app",
+                DJANGO_ALLOWED_HOSTS="testserver",
+            ),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = completed.stdout + completed.stderr
+        self.assertNotIn("deploy-check-only", output)
+        self.assertEqual(completed.returncode, 0, output)
+        self.assertIn("CSS 200", output)
+        self.assertIn("JS 200", output)
+        self.assertIn("ADMIN_CSS 200", output)
+        self.assertIn("FONT 200", output)
+        self.assertIn("MISSING 404", output)
+
     def test_local_remains_the_default_outside_railway(self):
         saved_module = os.environ.pop("DJANGO_SETTINGS_MODULE", None)
         saved_railway = os.environ.pop("RAILWAY_ENVIRONMENT", None)
@@ -172,4 +201,84 @@ except Exception as exc:
     print(type(exc).__name__)
     print(exc)
     raise
+"""
+
+_SERVE_STATIC = r"""
+import re
+from urllib.parse import urljoin
+
+import django
+
+django.setup()
+
+from django.conf import settings
+from django.contrib.staticfiles.storage import staticfiles_storage
+from django.core.management import call_command
+from django.template import Context, Template
+from django.test import Client
+
+security = "django.middleware.security.SecurityMiddleware"
+whitenoise = "whitenoise.middleware.WhiteNoiseMiddleware"
+if settings.MIDDLEWARE.index(whitenoise) != settings.MIDDLEWARE.index(security) + 1:
+    raise SystemExit("middleware " + ",".join(settings.MIDDLEWARE))
+if settings.STORAGES["default"]["BACKEND"] != "django.core.files.storage.FileSystemStorage":
+    raise SystemExit("default storage " + settings.STORAGES["default"]["BACKEND"])
+expected_static = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+if settings.STORAGES["staticfiles"]["BACKEND"] != expected_static:
+    raise SystemExit("static storage " + settings.STORAGES["staticfiles"]["BACKEND"])
+if settings.STATIC_URL != "/static/":
+    raise SystemExit("STATIC_URL " + settings.STATIC_URL)
+
+call_command("collectstatic", interactive=False, verbosity=1)
+
+template = Template("{% load static %}{% static 'css/app.css' %} {% static 'js/app.js' %}")
+css_url, js_url = template.render(Context()).split()
+print("CSS_URL", css_url)
+print("JS_URL", js_url)
+if staticfiles_storage.url("css/app.css") != css_url:
+    raise SystemExit("template url diverges from storage")
+
+def body(response):
+    return b"".join(response.streaming_content)
+
+client = Client()
+css = client.get(css_url)
+js = client.get(js_url)
+css_body = body(css)
+js_body = body(js)
+print("CSS", css.status_code, css.get("Content-Type", ""))
+print("JS", js.status_code, js.get("Content-Type", ""))
+if css.status_code != 200 or b"color-scheme" not in css_body:
+    raise SystemExit("css body was not served")
+if js.status_code != 200 or b"global-search" not in js_body:
+    raise SystemExit("js body was not served")
+if "text/css" not in css.get("Content-Type", ""):
+    raise SystemExit("css content type")
+missing = client.get("/static/css/does-not-exist.css")
+print("MISSING", missing.status_code)
+if missing.status_code != 404:
+    raise SystemExit("missing file was not rejected")
+
+admin_url = staticfiles_storage.url("admin/css/widgets.css")
+admin = client.get(admin_url)
+admin_body = body(admin)
+print("ADMIN_CSS", admin.status_code)
+if admin.status_code != 200 or not admin_body:
+    raise SystemExit("admin css was not served")
+text = admin_body.decode("utf-8")
+served_font = False
+for match in re.findall(r"url\(([^)]+)\)", text):
+    target = match.strip().strip("\"'").split("?")[0].split("#")[0]
+    if not target or target.startswith(("data:", "http://", "https://")):
+        continue
+    location = urljoin(admin_url, target)
+    response = client.get(location)
+    payload = body(response)
+    print("FONT", response.status_code, location)
+    if response.status_code != 200 or not payload:
+        raise SystemExit("broken manifest reference " + location)
+    served_font = True
+    break
+if not served_font:
+    raise SystemExit("admin css has no rewritten static reference")
 """

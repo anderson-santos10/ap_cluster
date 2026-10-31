@@ -57,7 +57,25 @@ if _missing_database:
 if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":  # noqa: F405
     raise ImproperlyConfigured("A configuração de produção deve usar PostgreSQL.")
 
+MIDDLEWARE = [  # noqa: F405
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    *MIDDLEWARE[1:],
+]
+
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
+
+# O backend default permanece o armazenamento local de uploads.
+# Só os estáticos passam pelo manifesto com hash, para o WhiteNoise servi-los.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = True
